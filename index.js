@@ -48,6 +48,22 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/payrolls", async (req, res) => {
+      const filter = {};
+      const options = {
+        sort: {
+          created: -1,
+        },
+      };
+      const result = await payments.find(filter, options).toArray();
+      res.send(result);
+    });
+    app.post("/payrolls", async (req, res) => {
+      const newPay = req?.body;
+      const result = await payments.insertOne(newPay);
+      res.send(result);
+    });
+
     // change verification for employee
     app.patch("/updateverified/:id", async (req, res) => {
       const id = req?.params.id; // Get the document ID from query parameters
