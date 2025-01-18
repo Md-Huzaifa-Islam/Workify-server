@@ -170,7 +170,7 @@ async function run() {
       res.send(result);
     });
 
-    // add a payroll
+    // add a payroll (completed)
     app.post("/payrolls", verifyToken, verifyHR, async (req, res) => {
       const newPay = req?.body;
       const result = await payments.insertOne(newPay);
@@ -186,7 +186,7 @@ async function run() {
       res.send(result);
     });
 
-    // change verification for employee
+    // change verification for employee (completed)
     app.patch(
       "/updateverified/:id",
       verifyToken,
@@ -263,8 +263,8 @@ async function run() {
       const result = await tasks.find(filter, options).toArray();
       res.send(result);
     });
-    //get all task for HR
-    app.get("/alltask", verifyToken, async (req, res) => {
+    //get all task for HR (completed)
+    app.get("/alltask", verifyToken, verifyHR, async (req, res) => {
       const filter = {};
       const options = {
         sort: { created: -1 },
