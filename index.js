@@ -98,7 +98,7 @@ async function run() {
       next();
     };
 
-    // for jwt token
+    // for jwt token (completed)
     app.post("/jwt", async (req, res) => {
       const payLoad = req?.body;
       const token = jwt.sign(payLoad, secret, { expiresIn: "2h" });
@@ -231,9 +231,14 @@ async function run() {
       res.send(result);
     });
 
-    //get a task by email
+    //get a task by email (completed)
     app.get("/owntask", verifyToken, verifyEmployee, async (req, res) => {
       const email = req?.query?.email;
+      const email2 = req?.user?.email;
+      if (email != email2) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+
       let filter = {
         email: email,
       };
@@ -256,26 +261,41 @@ async function run() {
       res.send(result);
     });
 
-    // update a task
-    app.put("/owntask/:id", verifyToken, async (req, res) => {
+    // update a task (completed)
+    app.put("/owntask/:id", verifyToken, verifyEmployee, async (req, res) => {
       const id = req?.params?.id;
       const updatedTask = req?.body;
+      const email2 = req?.user?.email;
       const filter = { _id: new ObjectId(id) };
+      const task = await tasks.findOne(filter);
+      if (email2 != task?.email) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
       const result = await tasks.updateOne(filter, { $set: updatedTask });
       res.send(result);
     });
 
-    //delete a task
+    //delete a task  (completed)
     app.delete("/owntask/:id", verifyToken, async (req, res) => {
       const id = req?.params?.id;
+      const email2 = req?.user?.email;
       const filter = { _id: new ObjectId(id) };
+      const task = await tasks.findOne(filter);
+      if (email2 != task?.email) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
       const result = await tasks.deleteOne(filter);
       res.send(result);
     });
 
-    //post a task
-    app.post("/addtask", verifyToken, async (req, res) => {
+    //post a task (completed)
+    app.post("/addtask", verifyToken, verifyEmployee, async (req, res) => {
+      const email2 = req?.user?.email;
       const newTask = req?.body;
+      const email = newTask?.email;
+      if (email != email2) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
       const result = await tasks.insertOne(newTask);
       res.send(result);
     });
