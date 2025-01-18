@@ -108,7 +108,7 @@ async function run() {
       });
       return res.status(200).send({ message: "Login successful" });
     });
-    // for logout jwt
+    // for logout jwt (completed)
     app.post("/logout", (req, res) => {
       res.clearCookie("jwtToken"); // Clear the authToken cookie
       res.status(200).send({ message: "Logged out successfully" });
@@ -124,8 +124,21 @@ async function run() {
       res.send(result?.role);
     });
 
-    // get all users
-    app.get("/users", verifyToken, async (req, res) => {
+    // get all users for hr (completed)
+    app.get("/users", verifyToken, verifyHR, async (req, res) => {
+      let options = {
+        sort: { created: -1 },
+      };
+      const filter = {
+        role: "Employee",
+      };
+      const result = await users.find(filter, options).toArray();
+
+      res.send(result);
+    });
+
+    // get all users for admin
+    app.get("/allusers", verifyToken, async (req, res) => {
       const isAdmin = req?.query?.admin;
       let result;
       let filter = {};
@@ -158,7 +171,7 @@ async function run() {
     });
 
     // add a payroll
-    app.post("/payrolls", verifyToken, async (req, res) => {
+    app.post("/payrolls", verifyToken, verifyHR, async (req, res) => {
       const newPay = req?.body;
       const result = await payments.insertOne(newPay);
       res.send(result);
@@ -174,15 +187,20 @@ async function run() {
     });
 
     // change verification for employee
-    app.patch("/updateverified/:id", verifyToken, async (req, res) => {
-      const id = req?.params.id; // Get the document ID from query parameters
-      const filter = { _id: new ObjectId(id) };
-      const user = await users.findOne(filter);
-      const verified = user?.verified;
-      const update = { $set: { verified: !verified } };
-      const result = await users.updateOne(filter, update);
-      res.send(result);
-    });
+    app.patch(
+      "/updateverified/:id",
+      verifyToken,
+      verifyHR,
+      async (req, res) => {
+        const id = req?.params.id; // Get the document ID from query parameters
+        const filter = { _id: new ObjectId(id) };
+        const user = await users.findOne(filter);
+        const verified = user?.verified;
+        const update = { $set: { verified: !verified } };
+        const result = await users.updateOne(filter, update);
+        res.send(result);
+      }
+    );
 
     // change role for employee
     app.patch("/updaterole/:id", verifyToken, async (req, res) => {
