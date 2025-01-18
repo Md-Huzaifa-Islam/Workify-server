@@ -10,6 +10,7 @@ const port = process.env.PORT;
 const secret = process.env.secret;
 
 // custom middleware
+// for token verification
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.jwtToken;
   if (!token) {
@@ -56,11 +57,51 @@ async function run() {
     const tasks = workify.collection("tasks");
     const payments = workify.collection("payments");
 
+    // middleware needed to access db
+    // verify admin middleware
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.user?.email;
+      const filter = {
+        email: email,
+      };
+      const result = await users.findOne(filter);
+      const role = result?.role;
+      if (role != "Admin") {
+        return res.status(403).json({ message: "Forbidden access" });
+      }
+      next();
+    };
+    // verify HR middleware
+    const verifyHR = async (req, res, next) => {
+      const email = req.user?.email;
+      const filter = {
+        email: email,
+      };
+      const result = await users.findOne(filter);
+      const role = result?.role;
+      if (role != "HR") {
+        return res.status(403).json({ message: "Forbidden access" });
+      }
+      next();
+    };
+    // verify Employee middleware
+    const verifyEmployee = async (req, res, next) => {
+      const email = req.user?.email;
+      const filter = {
+        email: email,
+      };
+      const result = await users.findOne(filter);
+      const role = result?.role;
+      if (role != "Employee") {
+        return res.status(403).json({ message: "Forbidden access" });
+      }
+      next();
+    };
+
     // for jwt token
     app.post("/jwt", async (req, res) => {
       const payLoad = req?.body;
       const token = jwt.sign(payLoad, secret, { expiresIn: "2h" });
-
       res.cookie("jwtToken", token, {
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
@@ -71,6 +112,16 @@ async function run() {
     app.post("/logout", (req, res) => {
       res.clearCookie("jwtToken"); // Clear the authToken cookie
       res.status(200).send({ message: "Logged out successfully" });
+    });
+
+    // get role of a user
+    app.get("/getrole", verifyToken, async (req, res) => {
+      const user = req?.user;
+      const filter = {
+        email: user.email,
+      };
+      const result = await users.findOne(filter);
+      res.send(result?.role);
     });
 
     // get all users
@@ -181,7 +232,7 @@ async function run() {
     });
 
     //get a task by email
-    app.get("/owntask", verifyToken, async (req, res) => {
+    app.get("/owntask", verifyToken, verifyEmployee, async (req, res) => {
       const email = req?.query?.email;
       let filter = {
         email: email,
@@ -189,6 +240,15 @@ async function run() {
       if (!email) {
         filter = {};
       }
+      const options = {
+        sort: { created: -1 },
+      };
+      const result = await tasks.find(filter, options).toArray();
+      res.send(result);
+    });
+    //get all task for HR
+    app.get("/alltask", verifyToken, async (req, res) => {
+      const filter = {};
       const options = {
         sort: { created: -1 },
       };
