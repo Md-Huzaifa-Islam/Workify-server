@@ -137,29 +137,20 @@ async function run() {
       res.send(result);
     });
 
-    // get all users for admin
-    app.get("/allusers", verifyToken, async (req, res) => {
-      const isAdmin = req?.query?.admin;
-      let result;
+    // get all users for admin (completed)
+    app.get("/allusers", verifyToken, verifyAdmin, async (req, res) => {
       let filter = {};
       let options = {
         sort: { created: -1 },
       };
-      if (Boolean(isAdmin)) {
-        result = await users.find(filter, options).toArray();
-      } else {
-        filter = {
-          role: "Employee",
-        };
-        result = await users.find(filter, options).toArray();
-      }
+      const result = await users.find(filter, options).toArray();
+
       res.send(result);
     });
 
-    // get all payrolls for admin
-    app.get("/payrolls", verifyToken, async (req, res) => {
+    // get all payrolls for admin (completed)
+    app.get("/payrolls", verifyToken, verifyAdmin, async (req, res) => {
       let filter = {};
-
       const options = {
         sort: {
           created: -1,
@@ -176,8 +167,8 @@ async function run() {
       const result = await payments.insertOne(newPay);
       res.send(result);
     });
-    // pay employee for admin
-    app.patch("/payrolls/:id", verifyToken, async (req, res) => {
+    // pay employee for admin (completed)
+    app.patch("/payrolls/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req?.params.id;
       const filter = { _id: new ObjectId(id) };
       const date = new Date().getTime();
@@ -202,8 +193,8 @@ async function run() {
       }
     );
 
-    // change role for employee
-    app.patch("/updaterole/:id", verifyToken, async (req, res) => {
+    // change role for employee (completed)
+    app.patch("/updaterole/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req?.params.id;
       const filter = { _id: new ObjectId(id) };
       const user = await users.findOne(filter);
@@ -218,21 +209,26 @@ async function run() {
       res.send(result);
     });
 
-    // change fire for employee
-    app.patch("/updatefired/:id", verifyToken, async (req, res) => {
-      const id = req?.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const user = await users.findOne(filter);
-      let fire = user?.fired;
-      if (fire == "True") {
-        fire = "False";
-      } else {
-        fire = "True";
+    // change fire for employee (completed)
+    app.patch(
+      "/updatefired/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req?.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const user = await users.findOne(filter);
+        let fire = user?.fired;
+        if (fire == true) {
+          fire = false;
+        } else {
+          fire = true;
+        }
+        const update = { $set: { fired: fire } };
+        const result = await users.updateOne(filter, update);
+        res.send(result);
       }
-      const update = { $set: { fired: fire } };
-      const result = await users.updateOne(filter, update);
-      res.send(result);
-    });
+    );
 
     // post a user
     app.put("/adduser", async (req, res) => {
