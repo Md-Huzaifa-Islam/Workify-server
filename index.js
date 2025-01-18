@@ -1,12 +1,12 @@
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
-import { MongoClient, ObjectId } from "mongodb";
+import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 const secret = process.env.secret;
 
 // custom middleware
@@ -45,9 +45,15 @@ app.listen(port, () => {
   console.log(`the server is running in the ${port}`);
 });
 
-const uri = "mongodb://localhost:27017";
+const uri = `mongodb+srv://${process.env.db_username}:${process.env.db_password}@cluster0.f3kdz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-const client = new MongoClient(uri);
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
 
 async function run() {
   try {
