@@ -1,14 +1,40 @@
 import "dotenv/config";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 import { MongoClient, ObjectId } from "mongodb";
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
 const app = express();
 const port = process.env.PORT;
+const secret = process.env.secret;
+
+// custom middleware
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.jwtToken;
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized: Token is missing" });
+  }
+  jwt.verify(token, secret, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: "Unauthorized: Invalid token" });
+    } else {
+      req.user = decoded;
+
+      next();
+    }
+  });
+};
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 app.get("/", (req, res) => {
   res.send("hello to the server of Workify");
@@ -29,8 +55,26 @@ async function run() {
     const users = workify.collection("users");
     const tasks = workify.collection("tasks");
     const payments = workify.collection("payments");
+
+    // for jwt token
+    app.post("/jwt", async (req, res) => {
+      const payLoad = req?.body;
+      const token = jwt.sign(payLoad, secret, { expiresIn: "2h" });
+
+      res.cookie("jwtToken", token, {
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      });
+      return res.status(200).send({ message: "Login successful" });
+    });
+    // for logout jwt
+    app.post("/logout", (req, res) => {
+      res.clearCookie("jwtToken"); // Clear the authToken cookie
+      res.status(200).send({ message: "Logged out successfully" });
+    });
+
     // get all users
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const isAdmin = req?.query?.admin;
       let result;
       let filter = {};
@@ -48,24 +92,44 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/payrolls", async (req, res) => {
-      const filter = {};
+    // get all payrolls
+    app.get("/payrolls", verifyToken, async (req, res) => {
+      const email = req?.query?.email;
+
+      let filter = {};
+      if (email) {
+        filter = {
+          email: email,
+        };
+      }
       const options = {
         sort: {
           created: -1,
         },
       };
       const result = await payments.find(filter, options).toArray();
+
       res.send(result);
     });
-    app.post("/payrolls", async (req, res) => {
+
+    // add a payroll
+    app.post("/payrolls", verifyToken, async (req, res) => {
       const newPay = req?.body;
       const result = await payments.insertOne(newPay);
       res.send(result);
     });
+    // pay employee for admin
+    app.patch("/payrolls/:id", verifyToken, async (req, res) => {
+      const id = req?.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const date = new Date().getTime();
+      const update = { $set: { paymentDate: date } };
+      const result = await payments.updateOne(filter, update);
+      res.send(result);
+    });
 
     // change verification for employee
-    app.patch("/updateverified/:id", async (req, res) => {
+    app.patch("/updateverified/:id", verifyToken, async (req, res) => {
       const id = req?.params.id; // Get the document ID from query parameters
       const filter = { _id: new ObjectId(id) };
       const user = await users.findOne(filter);
@@ -76,7 +140,7 @@ async function run() {
     });
 
     // change role for employee
-    app.patch("/updaterole/:id", async (req, res) => {
+    app.patch("/updaterole/:id", verifyToken, async (req, res) => {
       const id = req?.params.id;
       const filter = { _id: new ObjectId(id) };
       const user = await users.findOne(filter);
@@ -92,7 +156,7 @@ async function run() {
     });
 
     // change fire for employee
-    app.patch("/updatefired/:id", async (req, res) => {
+    app.patch("/updatefired/:id", verifyToken, async (req, res) => {
       const id = req?.params.id;
       const filter = { _id: new ObjectId(id) };
       const user = await users.findOne(filter);
@@ -117,11 +181,14 @@ async function run() {
     });
 
     //get a task by email
-    app.get("/owntask", async (req, res) => {
-      const email2 = req?.query?.email;
-      const filter = {
-        email: email2,
+    app.get("/owntask", verifyToken, async (req, res) => {
+      const email = req?.query?.email;
+      let filter = {
+        email: email,
       };
+      if (!email) {
+        filter = {};
+      }
       const options = {
         sort: { created: -1 },
       };
@@ -130,7 +197,7 @@ async function run() {
     });
 
     // update a task
-    app.put("/owntask/:id", async (req, res) => {
+    app.put("/owntask/:id", verifyToken, async (req, res) => {
       const id = req?.params?.id;
       const updatedTask = req?.body;
       const filter = { _id: new ObjectId(id) };
@@ -139,7 +206,7 @@ async function run() {
     });
 
     //delete a task
-    app.delete("/owntask/:id", async (req, res) => {
+    app.delete("/owntask/:id", verifyToken, async (req, res) => {
       const id = req?.params?.id;
       const filter = { _id: new ObjectId(id) };
       const result = await tasks.deleteOne(filter);
@@ -147,14 +214,14 @@ async function run() {
     });
 
     //post a task
-    app.post("/addtask", async (req, res) => {
+    app.post("/addtask", verifyToken, async (req, res) => {
       const newTask = req?.body;
       const result = await tasks.insertOne(newTask);
       res.send(result);
     });
 
     //get a task by email
-    app.get("/ownpayment", async (req, res) => {
+    app.get("/ownpayment", verifyToken, async (req, res) => {
       const email2 = req?.query?.email;
       const filter = {
         email: email2,
