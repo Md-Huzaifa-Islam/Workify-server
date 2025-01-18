@@ -143,16 +143,10 @@ async function run() {
       res.send(result);
     });
 
-    // get all payrolls
+    // get all payrolls for admin
     app.get("/payrolls", verifyToken, async (req, res) => {
-      const email = req?.query?.email;
-
       let filter = {};
-      if (email) {
-        filter = {
-          email: email,
-        };
-      }
+
       const options = {
         sort: {
           created: -1,
@@ -300,9 +294,13 @@ async function run() {
       res.send(result);
     });
 
-    //get a task by email
-    app.get("/ownpayment", verifyToken, async (req, res) => {
+    //get all payment history by email  (completed)
+    app.get("/ownpayment", verifyToken, verifyEmployee, async (req, res) => {
       const email2 = req?.query?.email;
+      const email = req?.user?.email;
+      if (email != email2) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
       const filter = {
         email: email2,
       };
