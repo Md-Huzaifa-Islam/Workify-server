@@ -114,7 +114,7 @@ async function run() {
       res.status(200).send({ message: "Logged out successfully" });
     });
 
-    // get role of a user
+    // get role of a user (completed)
     app.get("/getrole", verifyToken, async (req, res) => {
       const user = req?.user;
       const filter = {
