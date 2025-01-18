@@ -45,8 +45,8 @@ app.listen(port, () => {
   console.log(`the server is running in the ${port}`);
 });
 
-const uri = `mongodb+srv://${process.env.db_username}:${process.env.db_password}@cluster0.f3kdz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
+// const uri = `mongodb+srv://${process.env.db_username}:${process.env.db_password}@cluster0.f3kdz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = "mongodb://localhost:27017/";
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -241,6 +241,10 @@ async function run() {
       const user = req?.body;
       const options = { upsert: true };
       const filter = { email: user.email };
+      const foundUser = await users.findOne(filter);
+      if (Boolean(foundUser)) {
+        return res.send({ message: "the user already in" });
+      }
       const result = await users.updateOne(filter, { $set: user }, options);
       res.send(result);
     });
