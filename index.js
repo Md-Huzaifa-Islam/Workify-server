@@ -1,4 +1,5 @@
 import "dotenv/config";
+import Stripe from "stripe";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import { MongoClient, ObjectId, ServerApiVersion } from "mongodb";
@@ -8,6 +9,7 @@ import "dotenv/config";
 const app = express();
 const port = process.env.PORT || 5000;
 const secret = process.env.secret;
+const stripe = Stripe(process.env.stripe);
 
 // custom middleware
 // for token verification
@@ -62,6 +64,7 @@ async function run() {
     const users = workify.collection("users");
     const tasks = workify.collection("tasks");
     const payments = workify.collection("payments");
+    const reviews = workify.collection("reviews");
 
     // middleware needed to access db
     // verify admin middleware
@@ -104,6 +107,20 @@ async function run() {
       next();
     };
 
+    // stripe payment post method
+    app.post("/stripe", verifyToken, verifyAdmin, async (req, res) => {
+      const { amount } = req.body;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency: "usd",
+      });
+
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        transactionId: paymentIntent.id,
+      });
+    });
+
     // for jwt token (completed)
     app.post("/jwt", async (req, res) => {
       const payLoad = req?.body;
@@ -118,6 +135,17 @@ async function run() {
     app.post("/logout", (req, res) => {
       res.clearCookie("jwtToken"); // Clear the authToken cookie
       res.status(200).send({ message: "Logged out successfully" });
+    });
+
+    app.post("/addreview", verifyToken, async (req, res) => {
+      const newReview = req?.body;
+      const result = await reviews.insertOne(newReview);
+      res.send(result);
+    });
+
+    app.get("/reviews", verifyToken, async (req, res) => {
+      const result = await reviews.find().toArray();
+      res.send(result);
     });
 
     // get role of a user (completed)
@@ -175,10 +203,11 @@ async function run() {
     });
     // pay employee for admin (completed)
     app.patch("/payrolls/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const tId = req.body.tId;
       const id = req?.params.id;
       const filter = { _id: new ObjectId(id) };
       const date = new Date().getTime();
-      const update = { $set: { paymentDate: date } };
+      const update = { $set: { paymentDate: date, transactionId: tId } };
       const result = await payments.updateOne(filter, update);
       res.send(result);
     });
@@ -341,7 +370,12 @@ async function run() {
         email: email,
         paymentDate: { $exists: true },
       };
-      const result = await payments.find(filter).toArray();
+      const options = {
+        sort: {
+          payDate: 1,
+        },
+      };
+      const result = await payments.find(filter, options).toArray();
       res.send(result);
     });
 
