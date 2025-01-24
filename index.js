@@ -170,6 +170,32 @@ async function run() {
 
       res.send(result);
     });
+    // get one user data for profile (completed)
+    app.get("/user", verifyToken, async (req, res) => {
+      const email = req?.query?.email;
+      const email2 = req?.user?.email;
+      if (email != email2) {
+        return res.status(403).send({ message: "Forbidden access" });
+      }
+
+      const filter = {
+        email: email,
+      };
+      const result = await users.findOne(filter);
+
+      res.send(result);
+    });
+    // get one user data for profile (for hr)
+    app.get("/userhr", verifyToken, verifyHR, async (req, res) => {
+      const email = req?.query?.email;
+
+      const filter = {
+        email: email,
+      };
+      const result = await users.findOne(filter);
+
+      res.send(result);
+    });
 
     // get all users for admin (completed)
     app.get("/allusers", verifyToken, verifyAdmin, async (req, res) => {
@@ -300,7 +326,7 @@ async function run() {
     });
     //get all task for HR (completed)
     app.get("/alltask", verifyToken, verifyHR, async (req, res) => {
-      const filter = {};
+      let filter = {};
       const options = {
         sort: { created: -1 },
       };
